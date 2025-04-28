@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ImageSet, MaskImage } from '../types';
 import { ImageCard } from './image-card';
 import { Button } from './ui/button';
@@ -16,6 +16,24 @@ export const MaskRanking: React.FC<MaskRankingProps> = ({
   const [rankings, setRankings] = useState<Map<string, number>>(new Map());
   const [overlayOpacity, setOverlayOpacity] = useState(0.75); 
   const [showOverlay, setShowOverlay] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  
+  useEffect(() => {
+    setRankings(new Map());
+  }, [imageSet.id]);
+  
+  useEffect(() => {
+    if (rankings.size === imageSet.masks.length && rankings.size > 0) {
+      setIsTransitioning(true);
+      
+      const timer = setTimeout(() => {
+        handleValidate();
+        setIsTransitioning(false);
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [rankings]);
   
   const nextRank = rankings.size + 1;
   const allMasksRanked = rankings.size === imageSet.masks.length;
@@ -41,67 +59,59 @@ export const MaskRanking: React.FC<MaskRankingProps> = ({
     }));
     
     onValidate(result);
+    resetRankings();
   };
   
-  // Obtenir le rang d'un masque
   const getRank = (maskId: string): number | null => {
     return rankings.has(maskId) ? rankings.get(maskId)! : null;
   };
 
+  if (isTransitioning) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
+        <div className="text-white text-2xl font-bold">
+          Showing Next...
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Évaluation des cartes de saillance</h2>
-        <div className="space-x-2">
-          <Button 
-            variant="outline" 
-            onClick={resetRankings}
-            disabled={rankings.size === 0}
-          >
-            Réinitialiser
-          </Button>
-          <Button 
-            onClick={handleValidate}
-            disabled={!allMasksRanked}
-          >
-            Valider
-          </Button>
-        </div>
-      </div>
-      
-      {/* Contrôles de superposition */}
-      <div className="mb-6 p-4 bg-muted rounded-lg">
-        <div className="flex items-center gap-4 mb-2">
-          <h3 className="text-lg font-semibold">Superposition avec l'image originale</h3>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setShowOverlay(!showOverlay)}
-          >
-            {showOverlay ? "Masquer l'original" : "Montrer l'original"}
-          </Button>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <span>Transparence:</span>
-          <div className="w-64">
-            <Slider
-              value={[overlayOpacity]}
-              min={0}
-              max={1}
-              step={0.05}
-              onValueChange={(values) => setOverlayOpacity(values[0])}
-            />
+    <div className="container mx-auto py-4">
+      <div className="mb-4 p-3 bg-muted rounded-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 flex-1">
+            <span>Transparency:</span>
+            <div className="w-48 md:w-64">
+              <Slider
+                value={[overlayOpacity]}
+                min={0}
+                max={1}
+                step={0.05}
+                onValueChange={(values) => setOverlayOpacity(values[0])}
+              />
+            </div>
+            <span>{Math.round(overlayOpacity * 100)}%</span>
           </div>
-          <span>{Math.round(overlayOpacity * 100)}%</span>
+          
+          <div className="flex space-x-2 ml-4">
+            <Button 
+              variant="outline" 
+              onClick={resetRankings}
+              disabled={rankings.size === 0}
+            >
+              Reinit
+            </Button>
+            <Button 
+              onClick={handleValidate}
+              disabled={!allMasksRanked}
+            >
+              Validate
+            </Button>
+          </div>
         </div>
       </div>
       
-      <p className="text-lg mb-4">
-        Cliquez sur les images pour les classer par ordre de préférence (1 = préférée, {imageSet.masks.length} = moins préférée)
-      </p>
-      
-      {/* Grille de masques 3x2 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {imageSet.masks.map((mask) => (
           <ImageCard 
@@ -112,13 +122,14 @@ export const MaskRanking: React.FC<MaskRankingProps> = ({
             showOverlay={showOverlay}
             overlayOpacity={overlayOpacity}
             originalImage={imageSet.originalImage}
+            hideLabel={true}
           />
         ))}
       </div>
       
       {rankings.size > 0 && (
-        <div className="mt-8 p-4 bg-muted rounded-lg">
-          <h3 className="text-lg font-semibold mb-2">Votre classement actuel:</h3>
+        <div className="mt-6 p-4 bg-muted rounded-lg">
+          <h3 className="text-lg font-semibold mb-2">Current Ranking:</h3>
           <div className="space-y-1">
             {Array.from(rankings.entries())
               .sort((a, b) => a[1] - b[1])

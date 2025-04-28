@@ -1,10 +1,10 @@
 export type MaskType = 
-  | "occlusion" 
-  | "saliency" 
-  | "layer_gradcam" 
-  | "integrated_gradients" 
-  | "guided_gradcam" 
-  | "gradient_shap";
+  | "Occlusion" 
+  | "Saliency" 
+  | "LayerGradcam" 
+  | "IntegratedGradients" 
+  | "GuidedGradcam" 
+  | "GradientShap";
 
 export interface ImageSet {
   id: string;
